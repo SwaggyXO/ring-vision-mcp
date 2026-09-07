@@ -15,12 +15,17 @@ export interface DeviceStatus {
 }
 
 export interface DeviceCapabilities {
+  maxResolution?: string | number;
   codecs?: string[];
+  enhancements?: string[];
   features?: Record<string, unknown>;
   raw?: Record<string, unknown>;
 }
 
 export interface DeviceConfigurations {
+  motionDetectionEnabled?: boolean;
+  motionZonesCount?: number;
+  privacyZonesCount?: number;
   settings?: Record<string, unknown>;
   raw?: Record<string, unknown>;
 }

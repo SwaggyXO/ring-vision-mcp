@@ -6,15 +6,22 @@ Model Context Protocol (MCP) server for Ring cameras and doorbells, built on the
 
 ---
 
+## What This Is / What This Is Not
+
+- **This is**: An open-source Model Context Protocol (MCP) bridge to Ring's official 2026 Partner API (`api.amazonvision.com`) for authorized device discovery, connectivity status, event history, diagnostics, and WebRTC (WHEP) live-view session signaling.
+- **This is not**: An unofficial consumer-account scraper (no 2FA circumvention), a computer-vision model, or a replacement for Ring's own developer console.
+
+---
+
 ## Features
 
-- **Official 2026 Vision Partner API**: Communicates directly with `api.amazonvision.com` endpoints for device inventory, real-time health telemetry, event history, and WebRTC HTTP Egress Protocol (WHEP) live streaming.
+- **Official 2026 Vision Partner API**: Communicates directly with `api.amazonvision.com` endpoints for device inventory, real-time connectivity status, event history, and WebRTC HTTP Egress Protocol (WHEP) live streaming.
 - **Dual Authentication Modes**:
   - **Developer Playground**: Quick start using direct access tokens generated from the Amazon Vision Developer Portal.
   - **Production OAuth 2.0**: Long-running sessions using client credentials (`client_id` and `client_secret`) with automated token refresh.
 - **Flexible Transports**:
   - **stdio** (default): Native integration with desktop LLM clients (Claude Desktop, Cursor, Antigravity).
-  - **HTTP SSE**: Standalone Server-Sent Events server (`--http`) for networked or containerized agent deployments.
+  - **Streamable HTTP**: Full MCP 2025-11-25 Streamable HTTP transport (`--http`) listening at `/mcp` for networked or cloud agent integrations (such as Alexa+).
 - **Human-Friendly Device Resolution**: Tools accept either upstream device UUIDs or friendly name substrings (e.g. `"Front Door"`, `"backyard"`).
 - **Offline Mock Mode**: Enables full development, UI preview, and automated CI testing without live hardware or active credentials via `--mock` or `RING_MOCK_MODE=true`.
 - **Privacy-First Architecture**:
@@ -30,7 +37,7 @@ Model Context Protocol (MCP) server for Ring cameras and doorbells, built on the
 +---------------------+       stdio JSON-RPC       +--------------------+
 |                     | <========================> |                    |
 |   LLM Client        |                            |  ring-vision-mcp   |
-|  (Claude / Cursor)  |      or HTTP SSE (:3001)   |                    |
+|  (Claude / Cursor)  |   or Streamable HTTP /mcp  |                    |
 +---------------------+ <------------------------> +---------+----------+
                                                              |
                                                              | HTTPS (Bearer Token)
@@ -73,8 +80,11 @@ npm test
 # Build production bundle to dist/
 npm run build
 
-# Start local server
+# Start local server via stdio
 node dist/index.js
+
+# Or start via Streamable HTTP on port 3001
+node dist/index.js --http --port 3001
 ```
 
 ---
@@ -149,6 +159,16 @@ Add to your project `.cursor/mcp.json`:
 }
 ```
 
+### Alexa+ / Cloud Agents (Streamable HTTP)
+
+Point your MCP client or reverse proxy to the `/mcp` endpoint:
+
+```text
+http://<host>:3001/mcp
+```
+
+Transport type: `streamable-http` (MCP 2025-11-25).
+
 ---
 
 ## MCP Reference
@@ -160,7 +180,7 @@ Resources provide passive read-only state for clients supporting resource contex
 | URI | MIME Type | Description |
 | :-- | :-- | :-- |
 | `ring://devices` | `application/json` | Complete catalog of all Ring cameras and doorbells registered to the account. |
-| `ring://devices/{deviceId}/status` | `application/json` | Real-time health metrics (battery percentage, Wi-Fi RSSI signal strength, firmware version). |
+| `ring://devices/{deviceId}/status` | `application/json` | Real-time connectivity status and optional device-reported telemetry. |
 | `ring://events/recent` | `application/json` | Snapshot of the most recent incoming motion alerts and doorbell ring events. |
 
 ### Core Operational Tools (Active Operations)
@@ -170,12 +190,14 @@ Tools are callable by AI models to query device state, audit configurations, and
 | Tool Name | Parameters | Description |
 | :-- | :-- | :-- |
 | `ring_list_devices` | `includeOffline` (boolean, default: `true`) | Lists all cameras and doorbells with online status and hardware capabilities. |
-| `ring_get_device_status` | `deviceId` (string: ID or name substring) | Retrieves real-time battery level, Wi-Fi RSSI signal strength, and firmware version. |
-| `ring_get_device_capabilities` | `deviceId` (string: ID or name substring) | Inspects supported video codecs (`H.264`, `H.265`), resolutions, two-way audio, and color night vision. |
+| `ring_get_device_status` | `deviceId` (string: ID or name substring) | Retrieves online/offline status and device-reported telemetry (battery percentage, Wi-Fi signal metrics when available). |
+| `ring_get_device_capabilities` | `deviceId` (string: ID or name substring) | Inspects device-reported capabilities (supported video codecs, max resolution, two-way audio, and image enhancements). |
 | `ring_get_device_configurations` | `deviceId` (string: ID or name substring) | Inspects motion detection status, active motion zones count, and privacy zone configurations. |
 | `ring_query_event_history` | `deviceId` (optional string), `limit` (number, 1-100) | Retrieves past events. If `deviceId` is omitted, aggregates recent events across all account devices. |
-| `ring_initiate_whep_stream` | `deviceId` (string: ID or name), `sdpOffer` (string) | Submits a WebRTC SDP offer to the Ring WHEP gateway; returns the SDP answer and session control URL. |
+| `ring_initiate_whep_stream` | `deviceId` (string: ID or name), `sdpOffer` (string) | Submits a WebRTC SDP offer to Ring's WHEP gateway; returns the SDP answer and session control URL. |
 | `ring_terminate_whep_stream` | `sessionUrl` (string) | Closes an active WebRTC live view session immediately. |
+
+> **Important WebRTC Signaling Boundary**: `ring_initiate_whep_stream` performs WebRTC HTTP Egress Protocol (WHEP) signaling negotiation by exchanging the client's SDP offer with Ring's media gateway. It returns the session control URL and SDP answer. It does not decode, process, or display video frames directly inside the MCP client. Decoded playback is handled by an external WebRTC player, browser, or media pipeline.
 
 ### Extended Diagnostic Tools (`--extended`)
 
@@ -204,8 +226,8 @@ node dist/index.js --extended
 | `RING_TOKEN_URL` | String | OAuth token endpoint. Defaults to `https://api.amazonvision.com/oauth/token`. |
 | `RING_MOCK_MODE` | Boolean | Set to `"true"` to run offline with simulated devices and events. |
 | `RING_EXTENDED_TOOLS` | Boolean | Set to `"true"` to register extended diagnostic tools. |
-| `MCP_TRANSPORT` | String | Set to `"http"` to start the HTTP SSE transport instead of stdio. |
-| `MCP_PORT` | Number | Port for the HTTP SSE server (default: `3001`). |
+| `MCP_TRANSPORT` | String | Set to `"http"` to start the Streamable HTTP transport instead of stdio. |
+| `MCP_PORT` | Number | Port for the Streamable HTTP server (default: `3001`). |
 
 > **Note**: Setting both `RING_ACCESS_TOKEN` and `RING_CLIENT_ID` simultaneously will cause the server to fail fast with a configuration error to prevent credential ambiguity.
 

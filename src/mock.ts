@@ -47,22 +47,32 @@ export function getMockDeviceStatus(deviceId: string): DeviceStatus {
 
 export function getMockCapabilities(deviceId: string): DeviceCapabilities {
   return {
+    maxResolution: '1080p',
     codecs: ['H.264', 'H.265'],
+    enhancements: ['hdr', 'color_night_vision'],
     features: {
       two_way_audio: true,
       motion_zones: true,
-      color_night_vision: true,
-      max_resolution: '1080p',
     },
     raw: {
       device_id: deviceId,
       mock_mode: true,
+      video: {
+        max_resolution: '1080p',
+        codecs: ['H.264', 'H.265'],
+      },
+      image_enhancements: {
+        configurations: ['hdr', 'color_night_vision'],
+      },
     },
   };
 }
 
 export function getMockConfigurations(deviceId: string): DeviceConfigurations {
   return {
+    motionDetectionEnabled: true,
+    motionZonesCount: 3,
+    privacyZonesCount: 1,
     settings: {
       motion_detection_enabled: true,
       motion_zones_count: 3,
@@ -72,6 +82,13 @@ export function getMockConfigurations(deviceId: string): DeviceConfigurations {
     raw: {
       device_id: deviceId,
       mock_mode: true,
+      motion_detection: {
+        enabled: true,
+        motion_zones: [{}, {}, {}],
+      },
+      image_enhancements: {
+        privacy_zones: [{}],
+      },
     },
   };
 }

@@ -42,7 +42,7 @@ export function registerDeviceTools(server: McpServer, client: RingClient): void
 
   server.tool(
     'ring_get_device_status',
-    'Retrieve real-time battery percentage, Wi-Fi RSSI signal strength, and firmware version for a Ring device by ID or name.',
+    'Retrieve online/offline connectivity status and any device-reported telemetry (such as battery percentage or Wi-Fi signal metrics when available) by ID or name.',
     DeviceIdOrNameSchema.shape,
     async (args: DeviceIdArgs) => {
       const { deviceId } = args;
@@ -72,7 +72,7 @@ export function registerDeviceTools(server: McpServer, client: RingClient): void
 
   server.tool(
     'ring_get_device_capabilities',
-    'Inspect hardware capabilities for a Ring device (supported video codecs, resolutions, two-way audio, color night vision).',
+    'Inspect hardware and streaming capabilities (supported video codecs, max resolution, two-way audio, and image enhancements when reported by the camera) by ID or name.',
     DeviceIdOrNameSchema.shape,
     async (args: DeviceIdArgs) => {
       const { deviceId } = args;
@@ -102,7 +102,7 @@ export function registerDeviceTools(server: McpServer, client: RingClient): void
 
   server.tool(
     'ring_get_device_configurations',
-    'Retrieve motion zones, privacy zones, and camera alert settings for a Ring device by ID or name.',
+    'Retrieve motion detection status, motion zones, and privacy zones for a Ring device by ID or name.',
     DeviceIdOrNameSchema.shape,
     async (args: DeviceIdArgs) => {
       const { deviceId } = args;

@@ -1,6 +1,6 @@
 {
   "name": "ring-vision-mcp",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Open-source Model Context Protocol (MCP) server for Ring cameras and doorbells, built on the official 2026 Amazon Vision Partner API",
   "type": "module",
   "main": "dist/index.js",
@@ -17,11 +17,23 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SwaggyXO/ring-vision-mcp.git"
+  },
+  "homepage": "https://github.com/SwaggyXO/ring-vision-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/SwaggyXO/ring-vision-mcp/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "keywords": [
     "mcp",
     "model-context-protocol",
     "ring",
     "amazon-vision",
+    "streamable-http",
     "webrtc",
     "whep",
     "iot",

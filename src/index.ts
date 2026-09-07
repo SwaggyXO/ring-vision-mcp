@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import http from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createRingMcpServer } from './server';
 
 function printHelp(): void {
@@ -17,7 +18,7 @@ Usage:
 
 Modes:
   stdio (default)   Runs over standard I/O for Claude Desktop, Cursor, and terminal agents
-  --http            Starts a standalone HTTP Server-Sent Events (SSE) server
+  --http            Starts an HTTP server implementing MCP 2025-11-25 Streamable HTTP at /mcp
   --port <number>   Port for HTTP server (default: 3001)
   --mock            Enables offline mock mode without live hardware or credentials
   --extended        Enables auxiliary developer inspection tools (raw attributes, auth)
@@ -40,30 +41,29 @@ async function runStdio(extendedTools: boolean): Promise<void> {
 
 async function runHttp(port: number, extendedTools: boolean): Promise<void> {
   const server = createRingMcpServer({ extendedTools });
-  let transport: SSEServerTransport | null = null;
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+  });
+  await server.connect(transport);
 
   const httpServer = http.createServer(async (req, res) => {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
-    if (url.pathname === '/sse') {
-      transport = new SSEServerTransport('/message', res);
-      await server.connect(transport);
-      return;
-    }
-
-    if (url.pathname === '/message' && req.method === 'POST') {
-      if (!transport) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'No active SSE connection established.' }));
-        return;
-      }
-      await transport.handlePostMessage(req, res);
+    if (url.pathname === '/mcp' || url.pathname === '/sse') {
+      await transport.handleRequest(req, res);
       return;
     }
 
     if (url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', server: 'ring-vision-mcp' }));
+      res.end(
+        JSON.stringify({
+          status: 'ok',
+          server: 'ring-vision-mcp',
+          protocol: 'mcp-2025-11-25',
+          transport: 'streamable-http',
+        })
+      );
       return;
     }
 
@@ -72,7 +72,7 @@ async function runHttp(port: number, extendedTools: boolean): Promise<void> {
   });
 
   httpServer.listen(port, () => {
-    console.error(`Ring Vision MCP server listening on http://localhost:${port}/sse`);
+    console.error(`Ring Vision MCP server listening via Streamable HTTP on http://localhost:${port}/mcp`);
   });
 }
 

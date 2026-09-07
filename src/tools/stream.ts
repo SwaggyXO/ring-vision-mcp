@@ -14,7 +14,7 @@ interface TerminateWhepArgs {
 export function registerStreamTools(server: McpServer, client: RingClient): void {
   server.tool(
     'ring_initiate_whep_stream',
-    'Start a live WebRTC WHEP video streaming session with a Ring camera by ID or name and exchanging a client SDP offer.',
+    'Start a live WebRTC WHEP video streaming session with a Ring camera by ID or name and exchanging a client SDP offer. Performs WebRTC signaling only; does not decode or display video frames inside the MCP client.',
     InitiateWhepStreamSchema.shape,
     async (args: InitiateWhepArgs) => {
       const { deviceId, sdpOffer } = args;
@@ -25,7 +25,8 @@ export function registerStreamTools(server: McpServer, client: RingClient): void
           targetDevice: deviceId,
           sessionUrl: result.sessionUrl,
           sdpAnswer: result.sdpAnswer,
-          instructions: 'WebRTC WHEP session established. Keep sessionUrl to terminate via ring_terminate_whep_stream when finished.',
+          instructions:
+            'WebRTC WHEP session signaling established. The client media player or browser must decode the video stream using the returned SDP answer. Keep sessionUrl to terminate via ring_terminate_whep_stream when finished.',
         };
         return {
           content: [
